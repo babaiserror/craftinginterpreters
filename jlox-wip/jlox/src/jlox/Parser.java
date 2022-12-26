@@ -1,5 +1,6 @@
 package jlox;
 
+import java.sql.Array;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -10,6 +11,9 @@ class Parser {
 
     private final List<Token> tokens;
     private int current = 0;
+
+    private boolean allowExpression = false;
+    private boolean foundExpression = false;
 
     Parser(List<Token> tokens) {
         this.tokens = tokens;
@@ -24,8 +28,26 @@ class Parser {
         return statements;
     }
 
+    Object parseRepl() {
+        allowExpression = true;
+        List<Stmt> statements = new ArrayList<>();
+
+        while (!isAtEnd()) {
+            statements.add(declaration());
+
+            if (foundExpression) {
+                Stmt last = statements.get(statements.size() - 1);
+                return ((Stmt.Expression) last).expression;
+            }
+
+            allowExpression = false;
+        }
+
+        return statements;
+    }
+
     private Expr expression() {
-        return comma();
+        return assignment();
     }
 
     private Stmt declaration() {
@@ -41,6 +63,7 @@ class Parser {
 
     private Stmt statement() {
         if (match(PRINT)) return printStatement();
+        if (match(LEFT_BRACE)) return new Stmt.Block(block());
 
         return expressionStatement();
     }
@@ -65,8 +88,42 @@ class Parser {
 
     private Stmt expressionStatement() {
         Expr value = expression();
-        consume(SEMICOLON, "Expect ';' after expression.");
+
+        if (allowExpression && isAtEnd()) {
+            foundExpression = true;
+        } else {
+            consume(SEMICOLON, "Expect ';' after expression.");
+        }
         return new Stmt.Expression(value);
+    }
+
+    private List<Stmt> block() {
+        List<Stmt> statements = new ArrayList<>();
+
+        while (!check(RIGHT_BRACE) && !isAtEnd()) {
+            statements.add(declaration());
+        }
+
+        consume(RIGHT_BRACE, "Expect '}' after block.");
+        return statements;
+    }
+
+    private Expr assignment() {
+        Expr expr = comma();
+
+        if (match(EQUAL)) {
+            Token equals = previous();
+            Expr value = assignment();
+
+            if (expr instanceof Expr.Variable) {
+                Token name = ((Expr.Variable)expr).name;
+                return new Expr.Assign(name, value);
+            }
+
+            error(equals, "Invalid assignment target.");
+        }
+
+        return expr;
     }
 
     private Expr comma() {
