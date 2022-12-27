@@ -1,17 +1,23 @@
 program        → declaration* EOF;
 
-declaration    → varDecl
+declaration    → funDecl
+               | varDecl
                | statement;
+
+funDecl        → "fun" IDENTIFIER function ;
 
 varDecl        → "var" IDENTIFIER ( "=" expression )? ";" ;
 
-statement      → exprStmt
+statement      → printStmt
                | forStmt
                | ifStmt
-               | printStmt
                | whileStmt
                | breakStmt
-               | block ;
+               | returnStmt
+               | block
+               | exprStmt ;
+
+printStmt      → "print" expression ";" ;
 
 forStmt        → "for" "(" ( varDecl | exprStmt | ";" )
                  expression? ";"
@@ -24,17 +30,21 @@ breakStmt      → "break" ";" ;
 ifStmt         → "if" "(" expression ")" statement
                ( "else" statement )? ;
 
+function       → "(" parameters? ")" block ;
+parameters     → IDENTIFIER ( "," IDENTIFIER )* ;
+returnStmt     → "return" expression? ";" ;
+
 block          → "{" declaration* "}" ;
 
 exprStmt       → expression ";" ;
-printStmt      → "print" expression ";" ;
 
-expression     → assignment ;
+
+expression     → comma ;
+comma          → assignment ( "," assignment )* ;
 assignment     → IDENTIFER "=" assignment
-               | comma ;
+               | logic_or ;
 logic_or       → logic_and ( "or" logic_and )* ;
-logic_and      → comma ( "and" comma )* ;
-comma          → conditional ( "," conditional )* ;
+logic_and      → conditional ( "and" conditional )* ;
 conditional    → equality ( "?" conditional ":" conditional )? ;
 equality       → comparison ( ( "!=" | "==" ) comparison )* ;
 comparison     → term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
@@ -52,3 +62,9 @@ primary        → NUMBER | STRING | "true" | "false" | "nil"
                | ( "-" | "+" ) term
                | ( "/" | "*" ) factor ;
 arguments      → expression ( "," expression )* ;
+
+NUMBER         → DIGIT+ ( "." DIGIT+ )? ;
+STRING         → "\"" <any char except "\"">* "\"" ;
+IDENTIFIER     → ALPHA ( ALPHA | DIGIT )* ;
+ALPHA          → "a" ... "z" | "A" ... "Z" | "_" ;
+DIGIT          → "0" ... "9" ;

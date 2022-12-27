@@ -20,6 +20,26 @@ class AstPrinter implements Expr.Visitor<String> {
         return parenthesize(expr.operator.lexeme, expr.left, expr.right);
     }
 
+    public String visitFunctionExpr(Expr.Function expr) {
+        String res = "function ( anonymous";
+        for (int i=0; i < expr.parameters.size(); i++) {
+            res += ", ";
+            res += expr.parameters.get(i).lexeme;
+        }
+        res += " )";
+        return res;
+    }
+
+    @Override
+    public String visitCallExpr(Expr.Call expr) {
+        Expr[] expressions = new Expr[expr.arguments.size()+1];
+        expressions[0] = expr.callee;
+        for (int i=0; i < expr.arguments.size(); i++) {
+            expressions[i+1] = expr.arguments.get(i);
+        }
+        return parenthesize("function", expressions);
+    }
+
     @Override
     public String visitGroupingExpr(Expr.Grouping expr) {
         return parenthesize("group", expr.expression);
