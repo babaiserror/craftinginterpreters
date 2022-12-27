@@ -3,13 +3,28 @@ program        → declaration* EOF;
 declaration    → varDecl
                | statement;
 
-varDecl        → "var" IDENTIFIER ( "=" expression)? ";" ;
+varDecl        → "var" IDENTIFIER ( "=" expression )? ";" ;
 
 statement      → exprStmt
+               | forStmt
+               | ifStmt
                | printStmt
+               | whileStmt
+               | breakStmt
                | block ;
 
-blcok          → "{" declaration* "}" ;
+forStmt        → "for" "(" ( varDecl | exprStmt | ";" )
+                 expression? ";"
+                 expression? ")" statement ;
+
+whileStmt      → "while" "(" expression ")" statement ;
+
+breakStmt      → "break" ";" ;
+
+ifStmt         → "if" "(" expression ")" statement
+               ( "else" statement )? ;
+
+block          → "{" declaration* "}" ;
 
 exprStmt       → expression ";" ;
 printStmt      → "print" expression ";" ;
@@ -17,6 +32,8 @@ printStmt      → "print" expression ";" ;
 expression     → assignment ;
 assignment     → IDENTIFER "=" assignment
                | comma ;
+logic_or       → logic_and ( "or" logic_and )* ;
+logic_and      → comma ( "and" comma )* ;
 comma          → conditional ( "," conditional )* ;
 conditional    → equality ( "?" conditional ":" conditional )? ;
 equality       → comparison ( ( "!=" | "==" ) comparison )* ;
@@ -24,7 +41,8 @@ comparison     → term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
 term           → factor ( ( "-" | "+" ) factor )* ;
 factor         → unary ( ( "/" | "*" ) unary )* ;
 unary          → ( "!" | "-" ) unary
-               | primary ;
+               | call ;
+call           → primary ( "(" arguments? ")" )* ;
 primary        → NUMBER | STRING | "true" | "false" | "nil"
                | "(" expression ")"
                | IDENTIFIER
@@ -33,3 +51,4 @@ primary        → NUMBER | STRING | "true" | "false" | "nil"
                | ( ">" | ">=" | "<" | "<=" ) comparison
                | ( "-" | "+" ) term
                | ( "/" | "*" ) factor ;
+arguments      → expression ( "," expression )* ;
