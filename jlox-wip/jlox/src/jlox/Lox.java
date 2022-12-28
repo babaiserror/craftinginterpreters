@@ -36,6 +36,7 @@ public class Lox {
         BufferedReader reader = new BufferedReader(input);
 
         for (;;) {
+            hadError = false;
             System.out.print("> ");
             Scanner scanner = new Scanner(reader.readLine());
             List<Token> tokens = scanner.scanTokens();
@@ -46,6 +47,12 @@ public class Lox {
             if (hadError) continue;
 
             if (syntax instanceof List) {
+                Resolver resolver = new Resolver(interpreter);
+                resolver.resolve((List<Stmt>)syntax);
+
+                // ignore if there was a resolution error.
+                if (hadError) continue;
+
                 interpreter.interpret((List<Stmt>)syntax);
             } else if (syntax instanceof Expr) {
                 String result = interpreter.interpret((Expr)syntax);
@@ -53,8 +60,6 @@ public class Lox {
                     System.out.println(result);
                 }
             }
-
-            hadError = false;
         }
     }
 
@@ -65,6 +70,12 @@ public class Lox {
         List<Stmt> statements = parser.parse();
 
         // stop if there was a syntax error.
+        if (hadError) return;
+
+        Resolver resolver = new Resolver(interpreter);
+        resolver.resolve(statements);
+
+        // stop if there was a resolution error.
         if (hadError) return;
 
         interpreter.interpret(statements);
