@@ -1,3 +1,8 @@
+Repo forked for personal use, to use it for following along the book and its
+implementations. Below this is the original `README.md`.
+
+# README.md
+
 This is the repo used for the in-progress book "[Crafting Interpreters][]". It
 contains the Markdown text of the book, full implementations of both
 interpreters, as well as the build system to weave the two together into the
