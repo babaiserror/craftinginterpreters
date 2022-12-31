@@ -12,5 +12,8 @@ build-folder:
 build: build-folder
 	$(CXX) ./*.c $(LIBS) -o $(OUTPUT)
 
+debug: build-folder
+	$(CXX) ./*.c $(libs) -g -o $(OUTPUT)
+
 clean:
 	rm -rf ./build
