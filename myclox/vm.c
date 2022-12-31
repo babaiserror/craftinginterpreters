@@ -1,3 +1,5 @@
+#include <stdarg.h>
+#include <stdbool.h>
 #include <stdio.h>
 
 #include "common.h"
@@ -11,6 +13,19 @@
 VM vm;
 
 static void resetStack() { vm.stackTop = vm.stack; }
+
+static void runtimeError(const char* format, ...) {
+    va_list args;
+    va_start(args, format);
+    vfprintf(stderr, format, args);
+    va_end(args);
+    fputs("\n", stderr);
+
+    size_t instruction = vm.ip - vm.chunk->code - 1;
+    int line = vm.chunk->lines[instruction].line;
+    fprintf(stderr, "[line %d] in script\n", line);
+    resetStack();
+}
 
 void initVM() {
     resetStack();  
@@ -28,10 +43,14 @@ Value pop() {
     return *vm.stackTop;
 }
 
-Value peek() { return *(vm.stackTop - 1); }
+static Value peek(int distance) { return vm.stackTop[-1 - distance]; }
 
-void replaceTop(Value value) {
-    *(vm.stackTop - 1) = value;
+static bool isFalsey(Value value) {
+    return IS_NIL(value) || (IS_BOOL(value) && !AS_BOOL(value));
+}
+
+static void replaceAt(int distance, Value value) {
+    vm.stackTop[-1 - distance] = value;
 }
 
 static InterpretResult run() {
@@ -39,12 +58,16 @@ static InterpretResult run() {
 #define READ_CONSTANT() (vm.chunk->constants.values[READ_BYTE()])
 #define READ_LONG_CONSTANT() (vm.chunk->constants.values[READ_BYTE() | \
 			      (READ_BYTE() << 8) | (READ_BYTE() << 16)])
-#define BINARY_OP(op) \
+#define BINARY_OP(valueType, op)			\
     do { \
-	double b = pop(); \
-        replaceTop(peek() op b); \
+	if (!IS_NUMBER(peek(0)) || !IS_NUMBER(peek(1))) { \
+	    runtimeError("Operands must be numbers."); \
+	    return INTERPRET_RUNTIME_ERROR; \
+	} \
+	double b = AS_NUMBER(pop());		\
+        replaceAt(0, valueType(AS_NUMBER(peek(0)) op b));	\
     } while (false)
-    
+
     for (;;) {
 #ifdef DEBUG_TRACE_EXECUTION
 	printf("          ");
@@ -68,11 +91,30 @@ static InterpretResult run() {
 	    push(constant);
 	    break;
 	}
-	case OP_ADD:      BINARY_OP(+); break;
-	case OP_SUBTRACT: BINARY_OP(-); break;
-	case OP_MULTIPLY: BINARY_OP(*); break;
-	case OP_DIVIDE:   BINARY_OP(/); break;
-	case OP_NEGATE:   replaceTop(-peek()); break;
+	case OP_NIL: push(NIL_VAL); break;
+	case OP_TRUE: push(BOOL_VAL(true)); break;
+	case OP_FALSE: push(BOOL_VAL(false)); break;
+	case OP_EQUAL: {
+	    Value b = pop();
+	    replaceAt(0, BOOL_VAL(valuesEqual(peek(0), b)));
+	    break;
+	}
+	case OP_GREATER:  BINARY_OP(BOOL_VAL, >); break;
+	case OP_LESS:     BINARY_OP(BOOL_VAL, <); break;
+	case OP_ADD:      BINARY_OP(NUMBER_VAL, +); break;
+	case OP_SUBTRACT: BINARY_OP(NUMBER_VAL, -); break;
+	case OP_MULTIPLY: BINARY_OP(NUMBER_VAL, *); break;
+	case OP_DIVIDE:   BINARY_OP(NUMBER_VAL, /); break;
+	case OP_NOT:
+	    replaceAt(0, BOOL_VAL(isFalsey(peek(0))));
+	    break;
+	case OP_NEGATE:
+	    if (!IS_NUMBER(peek(0))) {
+		runtimeError("Operand must be a number.");
+		return INTERPRET_RUNTIME_ERROR;
+	    }
+	    replaceAt(0, NUMBER_VAL(-AS_NUMBER(peek(0))));
+	    break;
 	case OP_RETURN: {
 	    printValue(pop());
 	    printf("\n");
