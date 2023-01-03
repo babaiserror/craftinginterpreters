@@ -19,3 +19,6 @@ xcuserdata/
 
 # emacs backups.
 *~
+
+# gdb history
+.gdb_history
