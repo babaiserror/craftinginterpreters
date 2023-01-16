@@ -59,6 +59,7 @@ typedef struct {
 
 typedef enum {
     TYPE_FUNCTION,
+    TYPE_INITIALIZER,
     TYPE_METHOD,
     TYPE_SCRIPT
 } FunctionType;
@@ -167,7 +168,12 @@ static int emitJump(uint8_t instruction) {
 }
 
 static void emitReturn() {
-    emitByte(OP_NIL);
+    if (current->type == TYPE_INITIALIZER) {
+	emitBytes(OP_GET_LOCAL, 0);
+    } else {
+	emitByte(OP_NIL);
+    }
+    
     emitByte(OP_RETURN);
 }
 
@@ -429,6 +435,10 @@ static void dot(bool canAssign) {
     if (canAssign && match(TOKEN_EQUAL)) {
 	expression();
 	emitBytes(OP_SET_PROPERTY, name);
+    } else if (match(TOKEN_LEFT_PAREN)) {
+	uint8_t argCount = argumentList();
+	emitBytes(OP_INVOKE, name);
+	emitByte(argCount);
     } else {
 	emitBytes(OP_GET_PROPERTY, name);
     }
@@ -631,6 +641,11 @@ static void method() {
     consume(TOKEN_IDENTIFIER, "Expect method name.");
     uint8_t constant = identifierConstant(&parser.previous);
     FunctionType type = TYPE_METHOD;
+    if (parser.previous.length == 4 &&
+	memcmp(parser.previous.start, "init", 4) == 0) {
+	type = TYPE_INITIALIZER;
+    }
+    
     function(type);
     emitBytes(OP_METHOD, constant);
 }
@@ -762,6 +777,10 @@ static void returnStatement() {
     if (match(TOKEN_SEMICOLON)) {
 	emitReturn();
     } else {
+	if (current->type == TYPE_INITIALIZER) {
+	    error("Can't return a value from an initializer.");
+	}
+	
 	expression();
 	consume(TOKEN_SEMICOLON, "Expect ';' after return value.");
 	emitByte(OP_RETURN);
